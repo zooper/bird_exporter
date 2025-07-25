@@ -16,4 +16,7 @@ type Client interface {
 
 	// GetPrefixStats retrieves prefix length statistics from routing table
 	GetPrefixStats(proto *protocol.Protocol) (*protocol.PrefixStats, error)
+
+	// GetAllPrefixStats retrieves prefix length statistics for all routes in a table
+	GetAllPrefixStats(ipVersion string) (*protocol.PrefixStats, error)
 }

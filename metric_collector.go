@@ -48,6 +48,7 @@ func getClient() *client.BirdClient {
 func exportersForLegacy(c *client.BirdClient) map[protocol.Proto][]metrics.MetricExporter {
 	l := metrics.NewLegacyLabelStrategy()
 	prefixExporter := metrics.NewPrefixSizeExporter("bird", c)
+	tablePrefixExporter := metrics.NewTablePrefixSizeExporter("bird", c)
 
 	exporters := map[protocol.Proto][]metrics.MetricExporter{
 		protocol.BGP:    {metrics.NewLegacyMetricExporter("bgp4_session", "bgp6_session", l)},
@@ -60,13 +61,21 @@ func exportersForLegacy(c *client.BirdClient) map[protocol.Proto][]metrics.Metri
 		protocol.BFD:    {metrics.NewBFDExporter(c)},
 	}
 
-	// Add prefix size exporter to protocols that have routes
+	// Add per-protocol prefix size exporter 
 	if *enablePrefixSize {
 		for proto := range exporters {
 			if proto == protocol.BGP || proto == protocol.OSPF || proto == protocol.Kernel || 
 			   proto == protocol.Static || proto == protocol.Direct || proto == protocol.Babel {
 				exporters[proto] = append(exporters[proto], prefixExporter)
 			}
+		}
+	}
+
+	// Add table-wide prefix size exporter (only needs to run once per IP version)
+	if *enableTablePrefixSize {
+		// Add to BGP protocols since they're most likely to exist
+		if _, exists := exporters[protocol.BGP]; exists {
+			exporters[protocol.BGP] = append(exporters[protocol.BGP], tablePrefixExporter)
 		}
 	}
 
@@ -77,6 +86,7 @@ func exportersForDefault(c *client.BirdClient, descriptionLabels bool) map[proto
 	l := metrics.NewDefaultLabelStrategy(descriptionLabels, *descriptionLabelsRegex)
 	e := metrics.NewGenericProtocolMetricExporter("bird_protocol", true, l)
 	prefixExporter := metrics.NewPrefixSizeExporter("bird", c)
+	tablePrefixExporter := metrics.NewTablePrefixSizeExporter("bird", c)
 
 	exporters := map[protocol.Proto][]metrics.MetricExporter{
 		protocol.BGP:    {e},
@@ -89,13 +99,21 @@ func exportersForDefault(c *client.BirdClient, descriptionLabels bool) map[proto
 		protocol.BFD:    {metrics.NewBFDExporter(c)},
 	}
 
-	// Add prefix size exporter to protocols that have routes
+	// Add per-protocol prefix size exporter
 	if *enablePrefixSize {
 		for proto := range exporters {
 			if proto == protocol.BGP || proto == protocol.OSPF || proto == protocol.Kernel || 
 			   proto == protocol.Static || proto == protocol.Direct || proto == protocol.Babel {
 				exporters[proto] = append(exporters[proto], prefixExporter)
 			}
+		}
+	}
+
+	// Add table-wide prefix size exporter (only needs to run once per IP version)
+	if *enableTablePrefixSize {
+		// Add to BGP protocols since they're most likely to exist
+		if _, exists := exporters[protocol.BGP]; exists {
+			exporters[protocol.BGP] = append(exporters[protocol.BGP], tablePrefixExporter)
 		}
 	}
 
