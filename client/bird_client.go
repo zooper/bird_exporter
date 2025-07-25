@@ -149,14 +149,18 @@ func (c *BirdClient) GetAllPrefixStats(ipVersion string) (*protocol.PrefixStats,
 func (c *BirdClient) getCountBasedPrefixStats(sock, tableName, ipVersion string) (*protocol.PrefixStats, error) {
 	stats := protocol.NewPrefixStats(ipVersion, "all_routes")
 	
-	// Define prefix length ranges to query
+	// Define prefix length ranges to query - use all possible lengths
 	var prefixLengths []int
 	if ipVersion == "6" {
-		// Common IPv6 prefix lengths
-		prefixLengths = []int{20, 24, 28, 29, 30, 32, 36, 40, 44, 48, 52, 56, 60, 64, 96, 128}
+		// All IPv6 prefix lengths from /1 to /128
+		for i := 1; i <= 128; i++ {
+			prefixLengths = append(prefixLengths, i)
+		}
 	} else {
-		// Common IPv4 prefix lengths  
-		prefixLengths = []int{8, 16, 20, 22, 24, 25, 26, 27, 28, 29, 30, 31, 32}
+		// All IPv4 prefix lengths from /1 to /32
+		for i := 1; i <= 32; i++ {
+			prefixLengths = append(prefixLengths, i)
+		}
 	}
 	
 	// Query each prefix length using count command
