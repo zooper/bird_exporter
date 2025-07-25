@@ -62,6 +62,17 @@ func (c *BirdClient) GetBFDSessions(protocol *protocol.Protocol) ([]*protocol.BF
 	return parser.ParseBFDSessions(protocol.Name, b), nil
 }
 
+// GetPrefixStats retrieves prefix length statistics from routing table
+func (c *BirdClient) GetPrefixStats(proto *protocol.Protocol) (*protocol.PrefixStats, error) {
+	sock := c.socketFor(proto.IPVersion)
+	b, err := birdsocket.Query(sock, fmt.Sprintf("show route protocol %s", proto.Name))
+	if err != nil {
+		return nil, err
+	}
+
+	return parser.ParsePrefixStats(proto.Name, proto.IPVersion, b), nil
+}
+
 func (c *BirdClient) protocolsFromBird(ipVersions []string) ([]*protocol.Protocol, error) {
 	protocols := make([]*protocol.Protocol, 0)
 

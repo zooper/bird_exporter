@@ -47,8 +47,9 @@ func getClient() *client.BirdClient {
 
 func exportersForLegacy(c *client.BirdClient) map[protocol.Proto][]metrics.MetricExporter {
 	l := metrics.NewLegacyLabelStrategy()
+	prefixExporter := metrics.NewPrefixSizeExporter("bird", c)
 
-	return map[protocol.Proto][]metrics.MetricExporter{
+	exporters := map[protocol.Proto][]metrics.MetricExporter{
 		protocol.BGP:    {metrics.NewLegacyMetricExporter("bgp4_session", "bgp6_session", l)},
 		protocol.Direct: {metrics.NewLegacyMetricExporter("direct4", "direct6", l)},
 		protocol.Kernel: {metrics.NewLegacyMetricExporter("kernel4", "kernel6", l)},
@@ -58,13 +59,26 @@ func exportersForLegacy(c *client.BirdClient) map[protocol.Proto][]metrics.Metri
 		protocol.RPKI:   {metrics.NewLegacyMetricExporter("rpki4", "rpki6", l)},
 		protocol.BFD:    {metrics.NewBFDExporter(c)},
 	}
+
+	// Add prefix size exporter to protocols that have routes
+	if *enablePrefixSize {
+		for proto := range exporters {
+			if proto == protocol.BGP || proto == protocol.OSPF || proto == protocol.Kernel || 
+			   proto == protocol.Static || proto == protocol.Direct || proto == protocol.Babel {
+				exporters[proto] = append(exporters[proto], prefixExporter)
+			}
+		}
+	}
+
+	return exporters
 }
 
 func exportersForDefault(c *client.BirdClient, descriptionLabels bool) map[protocol.Proto][]metrics.MetricExporter {
 	l := metrics.NewDefaultLabelStrategy(descriptionLabels, *descriptionLabelsRegex)
 	e := metrics.NewGenericProtocolMetricExporter("bird_protocol", true, l)
+	prefixExporter := metrics.NewPrefixSizeExporter("bird", c)
 
-	return map[protocol.Proto][]metrics.MetricExporter{
+	exporters := map[protocol.Proto][]metrics.MetricExporter{
 		protocol.BGP:    {e},
 		protocol.Direct: {e},
 		protocol.Kernel: {e},
@@ -74,6 +88,18 @@ func exportersForDefault(c *client.BirdClient, descriptionLabels bool) map[proto
 		protocol.RPKI:   {e},
 		protocol.BFD:    {metrics.NewBFDExporter(c)},
 	}
+
+	// Add prefix size exporter to protocols that have routes
+	if *enablePrefixSize {
+		for proto := range exporters {
+			if proto == protocol.BGP || proto == protocol.OSPF || proto == protocol.Kernel || 
+			   proto == protocol.Static || proto == protocol.Direct || proto == protocol.Babel {
+				exporters[proto] = append(exporters[proto], prefixExporter)
+			}
+		}
+	}
+
+	return exporters
 }
 
 var socketQueryDesc = prometheus.NewDesc(
