@@ -163,9 +163,9 @@ func (c *BirdClient) getCountBasedPrefixStats(sock, tableName, ipVersion string)
 	for _, prefixLen := range prefixLengths {
 		var cmd string
 		if ipVersion == "6" {
-			cmd = fmt.Sprintf("show route table %s where net ~ [::/0{%d,%d}] count", tableName, prefixLen, prefixLen)
+			cmd = fmt.Sprintf("show route table %s where net ~ [::/0{%d,%d}] primary count", tableName, prefixLen, prefixLen)
 		} else {
-			cmd = fmt.Sprintf("show route table %s where net ~ [0.0.0.0/0{%d,%d}] count", tableName, prefixLen, prefixLen)
+			cmd = fmt.Sprintf("show route table %s where net ~ [0.0.0.0/0{%d,%d}] primary count", tableName, prefixLen, prefixLen)
 		}
 		
 		b, err := birdsocket.Query(sock, cmd)
