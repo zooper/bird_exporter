@@ -47,8 +47,10 @@ func getClient() *client.BirdClient {
 
 func exportersForLegacy(c *client.BirdClient) map[protocol.Proto][]metrics.MetricExporter {
 	l := metrics.NewLegacyLabelStrategy()
+	prefixExporter := metrics.NewPrefixSizeExporter("bird", c)
+	tablePrefixExporter := metrics.NewTablePrefixSizeExporter("bird", c)
 
-	return map[protocol.Proto][]metrics.MetricExporter{
+	exporters := map[protocol.Proto][]metrics.MetricExporter{
 		protocol.BGP:    {metrics.NewLegacyMetricExporter("bgp4_session", "bgp6_session", l)},
 		protocol.Direct: {metrics.NewLegacyMetricExporter("direct4", "direct6", l)},
 		protocol.Kernel: {metrics.NewLegacyMetricExporter("kernel4", "kernel6", l)},
@@ -58,13 +60,35 @@ func exportersForLegacy(c *client.BirdClient) map[protocol.Proto][]metrics.Metri
 		protocol.RPKI:   {metrics.NewLegacyMetricExporter("rpki4", "rpki6", l)},
 		protocol.BFD:    {metrics.NewBFDExporter(c)},
 	}
+
+	// Add per-protocol prefix size exporter 
+	if *enablePrefixSize {
+		for proto := range exporters {
+			if proto == protocol.BGP || proto == protocol.OSPF || proto == protocol.Kernel || 
+			   proto == protocol.Static || proto == protocol.Direct || proto == protocol.Babel {
+				exporters[proto] = append(exporters[proto], prefixExporter)
+			}
+		}
+	}
+
+	// Add table-wide prefix size exporter (only needs to run once per IP version)
+	if *enableTablePrefixSize {
+		// Add to BGP protocols since they're most likely to exist
+		if _, exists := exporters[protocol.BGP]; exists {
+			exporters[protocol.BGP] = append(exporters[protocol.BGP], tablePrefixExporter)
+		}
+	}
+
+	return exporters
 }
 
 func exportersForDefault(c *client.BirdClient, descriptionLabels bool) map[protocol.Proto][]metrics.MetricExporter {
 	l := metrics.NewDefaultLabelStrategy(descriptionLabels, *descriptionLabelsRegex)
 	e := metrics.NewGenericProtocolMetricExporter("bird_protocol", true, l)
+	prefixExporter := metrics.NewPrefixSizeExporter("bird", c)
+	tablePrefixExporter := metrics.NewTablePrefixSizeExporter("bird", c)
 
-	return map[protocol.Proto][]metrics.MetricExporter{
+	exporters := map[protocol.Proto][]metrics.MetricExporter{
 		protocol.BGP:    {e},
 		protocol.Direct: {e},
 		protocol.Kernel: {e},
@@ -74,6 +98,26 @@ func exportersForDefault(c *client.BirdClient, descriptionLabels bool) map[proto
 		protocol.RPKI:   {e},
 		protocol.BFD:    {metrics.NewBFDExporter(c)},
 	}
+
+	// Add per-protocol prefix size exporter
+	if *enablePrefixSize {
+		for proto := range exporters {
+			if proto == protocol.BGP || proto == protocol.OSPF || proto == protocol.Kernel || 
+			   proto == protocol.Static || proto == protocol.Direct || proto == protocol.Babel {
+				exporters[proto] = append(exporters[proto], prefixExporter)
+			}
+		}
+	}
+
+	// Add table-wide prefix size exporter (only needs to run once per IP version)
+	if *enableTablePrefixSize {
+		// Add to BGP protocols since they're most likely to exist
+		if _, exists := exporters[protocol.BGP]; exists {
+			exporters[protocol.BGP] = append(exporters[protocol.BGP], tablePrefixExporter)
+		}
+	}
+
+	return exporters
 }
 
 var socketQueryDesc = prometheus.NewDesc(
