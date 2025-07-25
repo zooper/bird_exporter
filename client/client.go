@@ -13,4 +13,7 @@ type Client interface {
 
 	// GetBFDSessions retrieves BFD specific information from bird
 	GetBFDSessions(protocol *protocol.Protocol) ([]*protocol.BFDSession, error)
+
+	// GetPrefixStats retrieves prefix length statistics from routing table
+	GetPrefixStats(proto *protocol.Protocol) (*protocol.PrefixStats, error)
 }
